@@ -38,8 +38,17 @@ def convert_row_to_list(row):
 
 
 def write_dict_to_db(mydict):
+#NOT SURE#
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table('ttlDynamoTestTable')
 
-
+    table.put_item(
+        Item={
+                'IDnumber': '',
+                'FirstName': '',
+                'Last_name': '',
+            }
+)
 
 def lambda_handler(event, context):
     dynamodb = boto3.client('dynamodb')

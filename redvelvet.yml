@@ -3,34 +3,34 @@ Transform: AWS::Serverless-2016-10-31
 Resources:
   S3UploadBucket:   #complete
     Type: 'AWS::S3::Bucket'
-      Bucketname : 'ttluploadbucket'
-  ttldynamotable:   
+    Bucketname : ttluploadbucket
+  ttldynamotable:   #mightbedone#
     Type: AWS::DynamoDB::Table
     Properties:
       Tablename: ttlDynamoTestTable
       AttributeDefinitions:
         -
-          AttributeName: "ArtistId"
+          AttributeName: "IdNumber"
           AttributeType: "S"
         -
-          AttributeName: "Concert"
+          AttributeName: "FirstName"
           AttributeType: "S"
         -
-          AttributeName: "TicketSales"
+          AttributeName: "LastName"
           AttributeType: "S"
       KeySchema:
         -
-          AttributeName: "ArtistId"
+          AttributeName: "IdNumber"
           KeyType: "HASH"
         -
-          AttributeName: "Concert"
+          AttributeName: "FirstName"
           KeyType: "RANGE"
       GlobalSecondaryIndexes:
         -
           IndexName: "GSI"
           KeySchema:
             -
-              AttributeName: "TicketSales"
+              AttributeName: "LastNAme"
               KeyType: "HASH"
           Projection:
             ProjectionType: "KEYS_ONLY"
@@ -112,7 +112,7 @@ Resources:
         Variables:
           SNSROLEARN: !GetAtt SNSRole.Arn
           SNSTOPIC: !Ref SNSTopic
-  lambdaWrite:
+  lambdaWrite: #might not be done 
     Type: AWS::Serverless::Function
     Properties:
       Runtime: python3.7
@@ -122,12 +122,6 @@ Resources:
       CodeUri: https://ttllambdafunctions.s3.amazonaws.com/lambdaWrite.py
       Role: !GetAtt WriteLambdaExecutionRole.Arn
       Environment:
-        Variables:
-          # import values from db stack to write to RDS
-          DBEndPoint: !ImportValue DBEndpointAddress
-          DatabaseName: !ImportValue DBName
-          DBUserName: !Ref DemoUser
-          TableName: !Ref TableName
   Comprehend:
   SNSTopic:   #complete
     Type: AWS::SNS::Topic
@@ -229,18 +223,20 @@ Resources:
       # Use Access Management (IAM) database authentication
       - PolicyName: dynamodb-policy
         PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - dynamodb : BatchGetItem
-				    - dynamodb : GetItem,
-				    - dynamodb : Query
-				    - dynamodb : Scan
-				    - dynamodb : BatchWriteItem
-				    - dynamodb : PutItem
-				    - dynamodb : UpdateItem
-            Resource: "arn:aws:dynamodb:AWS::Region:AWS::AccountID:table/ttlDynamoTestTable"
+        Version: "2012-10-17"
+        Statement: 
+        - 
+          Effect: Allow
+        Action: 
+          - "dynamodb:BatchGetItem"
+          - "dynamodb:GetItem"
+          - "dynamodb:Query"
+          - "dynamodb:Scan"
+          - "dynamodb:BatchWriteItem"
+          - "dynamodb:PutItem"
+          - "dynamodb:UpdateItem"
+
+      Resource: "arn:aws:dynamodb:AWS::Region:AWS::AccountID:table/ttlDynamoTestTable"
   WriteFunctionDepLayer: ###### might not be needed
     Type: AWS::Serverless::LayerVersion
     Properties:
