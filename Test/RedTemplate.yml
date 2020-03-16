@@ -1,0 +1,251 @@
+AWSTemplateFormatVersion: 2010-09-09
+#https://rpadovani.com/aws-textract
+Resources:
+  InvokePermissionsS3Read:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref LambdaReadFunction
+      Principal: s3.amazonaws.com
+      SourceAccount: !Ref 'AWS::AccountId'
+      SourceArn: !Sub 'arn:aws:s3:::ttltextractuploadbucket'
+  InvokePermissionS3Write:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+        Action: 'lambda:InvokeFunction'
+        FunctionName: !Ref LambdaWriteFunction
+        Principal: s3.amazonaws.com
+        SourceAccount: !Ref 'AWS::AccountId'
+        SourceArn: !Sub 'arn:aws:s3:::ttltextractjsonfilesbucket'
+  InvokePermissionSNSRead:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref LambdaReadFunction
+      Principal: sns.amazonaws.com
+  InvokePermissionSNSWrite:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref LambdaWriteFunction
+      Principal: sns.amazonaws.com
+  SNSTopic:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      DisplayName: LambdaSNSTopic
+      TopicName: LambdaSNSTopic
+  UploadBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: ttltextractuploadbucket
+      # NotificationConfiguration:
+      #   LambdaConfigurations:
+      #     - Event: 's3:ObjectCreated:*'
+      #     - Function: !GetAtt 
+      #         - LambdaReadFunction
+      #         - Arn
+    DependsOn:
+      - LambdaReadFunction
+      - InvokePermissionsS3Read
+      - SNSTopic
+  TextractJsonBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: ttltextractjsonfilesbucket
+    DependsOn:
+      - InvokePermissionS3Write
+  LambdaReadFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt 
+        - LambdaReadExecutionRole
+        - Arn
+      Code:
+        S3Bucket: 'ttllambdafunctions'
+        S3Key: 'read/index.zip'
+      DeadLetterConfig:
+        TargetArn: !Ref SNSTopic
+      Runtime: python3.7
+      Timeout: 7
+  LambdaWriteFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt 
+        - LambdaWriteExecutionRole
+        - Arn
+      Code:
+        S3Bucket: 'ttllambdafunctions'
+        S3Key: 'write/index.zip'
+      DeadLetterConfig:
+        TargetArn: !Ref SNSTopic
+      Runtime: python3.7
+      Timeout: 7
+  SNSRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - textract.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: sqs-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'sqs:*'
+                Resource: '*'
+        - PolicyName: sns-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'sns:publish'
+                Resource: !Ref SNSTopic
+  SQSQueue:
+    Type: 'AWS::SQS::Queue'
+    DependsOn:
+      - SQSRole
+  SQSRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - textract.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: sqs-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'sqs:*'
+                Resource: '*'
+        - PolicyName: sns-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'sns:publish'
+                Resource: !Ref SNSTopic
+  LambdaReadExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: LambdaReadExecutionRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: cloudwatch-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:*'
+                Resource: 'arn:aws:logs:*:*:*'
+        - PolicyName: textract-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'textract:*'
+                Resource: '*'
+        - PolicyName: s3-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                Resource: '*'
+        - PolicyName: sns-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'sns:publish'
+                Resource: !Ref SNSTopic
+  LambdaWriteExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: LambdaWriteExecutionRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: cloudwatch-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:*'
+                Resource: 'arn:aws:logs:*:*:*'
+        - PolicyName: textract-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'textract:*'
+                Resource: '*'
+        - PolicyName: s3-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                Resource: '*'
+        - PolicyName: sns-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'sns:publish'
+                Resource: !Ref SNSTopic
+  Subscription:
+    Type: 'AWS::SNS::Subscription'
+    Properties:
+      Endpoint: !GetAtt 
+        - LambdaWriteFunction
+        - Arn
+      Protocol: lambda
+      TopicArn: !Ref SNSTopic
+    DependsOn: SNSTopic
