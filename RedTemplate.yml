@@ -73,6 +73,82 @@ Conditions:
       - ''
       - !Ref TextDetectionJobStatusTopicName
 Resources:
+  PostProcessedS3Bucket:
+    Type: 'AWS::S3::Bucket'
+    DependsOn:
+      - TextractAsyncJobSubmitFunction
+      - DocumentAnalysisLambdaInvokeS3Permission
+    Properties:
+      BucketName: ttlpostprocessedbucket
+      AccessControl: Private
+      VersioningConfiguration:
+        Status: Enabled
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: 's3:ObjectCreated:*'
+            Function: !GetAtt 
+              - TextractAsyncJobSubmitFunction
+              - Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: pdf
+          - Event: 's3:ObjectCreated:*'
+            Function: !GetAtt 
+              - TextractAsyncJobSubmitFunction
+              - Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: jpg
+          - Event: 's3:ObjectCreated:*'
+            Function: !GetAtt 
+              - TextractAsyncJobSubmitFunction
+              - Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: jpeg
+    DeletionPolicy: Retain
+  ProcessedBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    DependsOn: PostProcessedS3Bucket
+    Properties:
+      Bucket: !Ref PostProcessedS3Bucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt 
+                - LambdaTextractRole
+                - Arn
+            Action:
+              - 's3:GetObject'
+              - 's3:GetObjectVersion'
+              - 's3:PutObject'
+              - 's3:PutObjectAcl'
+            Resource: !Join 
+              - /
+              - - !GetAtt 
+                  - PostProcessedS3Bucket
+                  - Arn
+                - '*'
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt 
+                - LambdaTextractRole
+                - Arn
+            Action:
+              - 's3:ListBucket'
+              - 's3:ListBucketVersions'
+            Resource: !GetAtt 
+              - PostProcessedS3Bucket
+              - Arn
+    DeletionPolicy: Retain
   TextractDocumentAnalysisTable:
     Type: 'AWS::DynamoDB::Table'
     Properties:
@@ -539,8 +615,6 @@ Resources:
         - - !Ref 'AWS::AccountId'
           - !Ref DocumentBucketName
       AccessControl: Private
-      VersioningConfiguration:
-        Status: Enabled
       NotificationConfiguration:
         LambdaConfigurations:
           - Event: 's3:ObjectCreated:*'
