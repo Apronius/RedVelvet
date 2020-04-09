@@ -83,7 +83,6 @@ Resources:
       AccessControl: Private
       VersioningConfiguration:
         Status: Enabled
-    DeletionPolicy: Retain
   ProcessedBucketPolicy:   #new bucket policy
     Type: 'AWS::S3::BucketPolicy'
     DependsOn: PostProcessedS3Bucket
@@ -586,6 +585,8 @@ Resources:
         - - !Ref 'AWS::AccountId'
           - !Ref DocumentBucketName
       AccessControl: Private
+      VersioningConfiguration:
+        Status: Enabled
       NotificationConfiguration:
         LambdaConfigurations:
           - Event: 's3:ObjectCreated:*'
@@ -615,7 +616,7 @@ Resources:
                 Rules:
                   - Name: suffix
                     Value: jpeg
-          - Event: 's3:ObjectCreated:*'   #new, alter textractAsyncJobSubmitFunction to allow pngs (if needed)
+          - Event: 's3:ObjectCreated:*'
             Function: !GetAtt 
               - TextractAsyncJobSubmitFunction
               - Arn
@@ -624,7 +625,6 @@ Resources:
                 Rules:
                   - Name: suffix
                     Value: png
-    DeletionPolicy: Retain
   DocumentBucketPolicy:
     Type: 'AWS::S3::BucketPolicy'
     DependsOn: DocumentBucket
