@@ -52,7 +52,7 @@ def lambda_handler(event, context):
                     textractS3Bucket = documentLocation['S3Bucket']
                     print("{} = {}".format("S3Bucket", textractS3Bucket))      
                     
-                    bucket = textractS3Bucket
+                    bucket = 'ttlpostprocessedbucket'
                     document_path = textractS3ObjectName[:textractS3ObjectName.rfind("/")] if textractS3ObjectName.find("/") >= 0 else ""
                     document_name = textractS3ObjectName[textractS3ObjectName.rfind("/")+1:textractS3ObjectName.rfind(".")] if textractS3ObjectName.find("/") >= 0 else textractS3ObjectName[:textractS3ObjectName.rfind(".")]
                     document_type = textractS3ObjectName[textractS3ObjectName.rfind(".")+1:].upper()                        
