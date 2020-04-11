@@ -358,7 +358,26 @@ def submitTextDetectionJob(bucket, document, tokenPrefix, retryInterval, maxRetr
             print('DynamoDB Insertion Error is: {0}'.format(e))
 
     return jsonresponse
+
+def comprehend():
+    comprehend = boto3.client(‘comprehend’)
+
+    languages = comprehend.detect_dominant_language(
+            Text=text
+        )
+        dominant_language = sorted(languages['Languages'], key=lambda k: k['LanguageCode'])[0]['LanguageCode']
+        if dominant_language not in ['en','es','fr','de','it','pt']:
+            dominant_language = "en"
+            
+        detected_entities = comprehend.detect_entities(
+            Text=text,
+            LanguageCode=dominant_language
+        )
+        selected_entity_types = ["ORGANIZATION", "PERSON", "LOCATION", "DATE"]
+        selected_entities = [x for x in detected_entities['Entities'] if x['Score'] > 0.9 and x['Type'] in selected_entity_types]
         
+        print(selected_entities)
+
 def lambda_handler(event, context): 
     print(event)
     
