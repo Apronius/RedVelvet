@@ -63,21 +63,22 @@ Conditions:
       - ''
       - !Ref TextDetectionJobStatusTopicName
 Resources:
-  PostProcessedS3Bucket:   
+  PostProcessedBucket:
     Type: 'AWS::S3::Bucket'
     DependsOn:
       - TextractAsyncJobSubmitFunction
       - DocumentAnalysisLambdaInvokeS3Permission
+    Condition: NewDocumentBucketCreation
     Properties:
-      BucketName: ttlpostprocessedbucket
+      BucketName: 'postprocessedbucket'
       AccessControl: Private
       VersioningConfiguration:
         Status: Enabled
-  ProcessedBucketPolicy:   
+  PostProcessedBucketPolicy:
     Type: 'AWS::S3::BucketPolicy'
-    DependsOn: PostProcessedS3Bucket
+    DependsOn: PostProcessedBucket
     Properties:
-      Bucket: !Ref PostProcessedS3Bucket
+      Bucket: !Ref PostProcessedBucket
       PolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -94,7 +95,7 @@ Resources:
             Resource: !Join 
               - /
               - - !GetAtt 
-                  - PostProcessedS3Bucket
+                  - PostProcessedBucket
                   - Arn
                 - '*'
           - Effect: Allow
@@ -106,9 +107,8 @@ Resources:
               - 's3:ListBucket'
               - 's3:ListBucketVersions'
             Resource: !GetAtt 
-              - PostProcessedS3Bucket
+              - PostProcessedBucket
               - Arn
-    DeletionPolicy: Retain
   TextractDocumentAnalysisTable:
     Type: 'AWS::DynamoDB::Table'
     Properties:
@@ -372,7 +372,6 @@ Resources:
           AWS_DATA_PATH: models
           max_retry_attempt: '3'
           retry_interval: '30'
-          document_analysis_token_prefix: TextractDocumentAnalysisJob
           text_detection_token_prefix: TextractTextDetectionJob
           text_detection_topic_arn: !Ref TextDetectionJobStatusTopic
           role_arn: !Join 
@@ -497,7 +496,6 @@ Resources:
                 Rules:
                   - Name: suffix
                     Value: png
-    DeletionPolicy: Retain
   DocumentBucketPolicy:
     Type: 'AWS::S3::BucketPolicy'
     DependsOn: DocumentBucket
@@ -534,7 +532,6 @@ Resources:
             Resource: !GetAtt 
               - DocumentBucket
               - Arn
-    DeletionPolicy: Retain
   TextractDemoAPI:
     Type: 'AWS::ApiGateway::RestApi'
     DependsOn:
